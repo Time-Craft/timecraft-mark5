@@ -1,8 +1,6 @@
-
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import OfferHeader from "./OfferHeader"
-import OfferStatus from "./OfferStatus"
 import { Check, Hourglass, X, Trash2 } from "lucide-react"
 import { useApplicationManagement } from "@/hooks/useApplicationManagement"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
@@ -148,7 +146,6 @@ const OfferCard = ({ offer, showApplications = false }: OfferCardProps) => {
         />
         <p className="mt-2 text-navy/80">{offer.description}</p>
         <div className="mt-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <OfferStatus status={offer.status} />
           <div className="flex flex-col md:flex-row gap-2 md:items-center">
             {isOwner && (
               <Button
