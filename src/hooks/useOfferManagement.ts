@@ -115,7 +115,10 @@ export const useOfferManagement = () => {
         })
         .eq('user_id', user.id)
       
-      if (updateError) throw updateError
+      if (updateError) {
+        console.error('Error updating time balance:', updateError)
+        throw updateError
+      }
       
       return data
     },
