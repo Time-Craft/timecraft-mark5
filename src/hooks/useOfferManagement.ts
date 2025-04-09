@@ -72,9 +72,20 @@ export const useOfferManagement = () => {
         
       if (timeBalanceError) throw timeBalanceError
       
+      console.log(`Checking time balance: User has ${timeBalanceData.balance}, needs ${offer.timeCredits}`)
+      
       if (timeBalanceData.balance < offer.timeCredits) {
         throw new Error(`Insufficient credits. You need ${offer.timeCredits} but only have ${timeBalanceData.balance}.`)
       }
+
+      console.log('Creating offer with data:', {
+        title: offer.title,
+        description: offer.description,
+        hours: offer.duration,
+        time_credits: offer.timeCredits,
+        service_type: offer.serviceType,
+        duration: offer.duration
+      })
 
       const { error, data } = await supabase
         .from('offers')
@@ -93,6 +104,8 @@ export const useOfferManagement = () => {
         .select()
       
       if (error) throw error
+
+      console.log(`Updating balance: ${timeBalanceData.balance} - ${offer.timeCredits} = ${timeBalanceData.balance - offer.timeCredits}`)
 
       const { error: updateError } = await supabase
         .from('time_balances')

@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -111,7 +110,6 @@ const Profile = () => {
     enabled: !!userId
   })
 
-  // Add query to fetch time balance
   const { data: timeBalance, isLoading: timeBalanceLoading } = useQuery({
     queryKey: ['time-balance', userId],
     queryFn: async () => {
@@ -147,6 +145,7 @@ const Profile = () => {
         .order('created_at', { ascending: false })
 
       if (error) throw error
+      console.log('User offers in profile page:', data) // Debug log to check time_credits
       return data
     },
     enabled: !!userId
@@ -293,6 +292,7 @@ const Profile = () => {
                   key={offer.id} 
                   offer={{
                     ...offer,
+                    timeCredits: offer.time_credits,
                     user: {
                       id: offer.profile_id,
                       name: profile?.username || 'Unknown',

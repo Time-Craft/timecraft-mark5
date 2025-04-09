@@ -54,6 +54,9 @@ export const useExploreOffers = () => {
       const { data, error } = await query
       if (error) throw error
 
+      // Debug log to verify time_credits is coming from the database
+      console.log('Offers from database:', data)
+
       return data.map(offer => ({
         id: offer.id,
         title: offer.title,
