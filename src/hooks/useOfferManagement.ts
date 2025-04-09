@@ -81,7 +81,7 @@ export const useOfferManagement = () => {
         .insert([{ 
           title: offer.title,
           description: offer.description,
-          hours: offer.hours,
+          hours: offer.duration,
           time_credits: offer.timeCredits,
           service_type: offer.serviceType,
           date: offer.date,

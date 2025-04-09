@@ -59,7 +59,7 @@ export const useExploreOffers = () => {
         title: offer.title,
         description: offer.description,
         hours: offer.hours,
-        timeCredits: offer.time_credits,  // Pass the actual time_credits value without fallback
+        timeCredits: offer.time_credits,
         status: offer.status,
         service_type: offer.service_type || offer.status,
         accepted_by: [],

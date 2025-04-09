@@ -68,7 +68,7 @@ export const usePendingOffers = () => {
         title: offer.title,
         description: offer.description,
         hours: offer.hours,
-        timeCredits: offer.time_credits, // Use actual time_credits, don't fall back to hours
+        timeCredits: offer.time_credits,
         status: offer.status,
         isApplied: false,
         user: {
@@ -86,7 +86,7 @@ export const usePendingOffers = () => {
           title: offer.title,
           description: offer.description,
           hours: offer.hours,
-          timeCredits: offer.time_credits, // Use actual time_credits, don't fall back to hours
+          timeCredits: offer.time_credits,
           status: offer.status,
           isApplied: true,
           applicationStatus: application.status,

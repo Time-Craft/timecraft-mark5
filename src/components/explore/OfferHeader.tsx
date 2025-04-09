@@ -39,7 +39,7 @@ const OfferHeader = ({ user, title, hours, timeCredits }: OfferHeaderProps) => {
         <div className="flex items-center">
           <Coins className="mr-2 h-4 w-4 text-amber-500" />
           <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-            {timeCredits !== undefined ? timeCredits : hours} {(timeCredits !== undefined ? timeCredits : hours) === 1 ? 'Credit' : 'Credits'}
+            {timeCredits} {timeCredits === 1 ? 'Credit' : 'Credits'}
           </Badge>
         </div>
       </div>
