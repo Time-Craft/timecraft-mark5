@@ -104,21 +104,6 @@ export const useOfferManagement = () => {
         .select()
       
       if (error) throw error
-
-      console.log(`Updating balance: ${timeBalanceData.balance} - ${offer.timeCredits} = ${timeBalanceData.balance - offer.timeCredits}`)
-
-      const { error: updateError } = await supabase
-        .from('time_balances')
-        .update({ 
-          balance: timeBalanceData.balance - offer.timeCredits,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id)
-      
-      if (updateError) {
-        console.error('Error updating time balance:', updateError)
-        throw updateError
-      }
       
       return data
     },
