@@ -1,4 +1,3 @@
-
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/components/ui/use-toast'
@@ -18,7 +17,6 @@ export const useOfferManagement = () => {
   const queryClient = useQueryClient()
   const { toast } = useToast()
 
-  // Real-time subscription for offer changes
   useEffect(() => {
     const channel = supabase
       .channel('offer-management')
@@ -39,7 +37,6 @@ export const useOfferManagement = () => {
       )
       .subscribe()
 
-    // Add subscription to time_balances table to update in real-time
     const timeBalancesChannel = supabase
       .channel('time-balances-changes')
       .on(
@@ -67,7 +64,6 @@ export const useOfferManagement = () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('User not authenticated')
 
-      // First, check if the user has enough credits
       const { data: timeBalanceData, error: timeBalanceError } = await supabase
         .from('time_balances')
         .select('balance')
@@ -76,19 +72,17 @@ export const useOfferManagement = () => {
         
       if (timeBalanceError) throw timeBalanceError
       
-      // Each time_credit costs 1 balance point
       if (timeBalanceData.balance < offer.timeCredits) {
         throw new Error(`Insufficient credits. You need ${offer.timeCredits} but only have ${timeBalanceData.balance}.`)
       }
 
-      // Create the offer
       const { error, data } = await supabase
         .from('offers')
         .insert([{ 
           title: offer.title,
           description: offer.description,
-          hours: offer.duration, // Store the duration in hours
-          time_credits: offer.timeCredits, // Store the time credits separately
+          hours: offer.hours,
+          time_credits: offer.timeCredits,
           service_type: offer.serviceType,
           date: offer.date,
           duration: offer.duration,
@@ -100,11 +94,10 @@ export const useOfferManagement = () => {
       
       if (error) throw error
 
-      // Update the time balance (deduct 1 point per time_credit)
       const { error: updateError } = await supabase
         .from('time_balances')
         .update({ 
-          balance: timeBalanceData.balance - offer.timeCredits, // Deduct exactly the number of timeCredits
+          balance: timeBalanceData.balance - offer.timeCredits,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', user.id)
@@ -118,7 +111,6 @@ export const useOfferManagement = () => {
         title: "Success",
         description: "Request created successfully",
       })
-      // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['user-offers'] })
       queryClient.invalidateQueries({ queryKey: ['offers'] })
       queryClient.invalidateQueries({ queryKey: ['time-balance'] })
@@ -143,8 +135,8 @@ export const useOfferManagement = () => {
         .update({ 
           title: offer.title,
           description: offer.description,
-          hours: offer.duration, // Update the duration in hours
-          time_credits: offer.timeCredits, // Update the time credits
+          hours: offer.hours,
+          time_credits: offer.timeCredits,
           service_type: offer.serviceType,
           updated_at: new Date().toISOString()
         })
@@ -158,7 +150,6 @@ export const useOfferManagement = () => {
         title: "Success",
         description: "Offer updated successfully",
       })
-      // Invalidate both queries
       queryClient.invalidateQueries({ queryKey: ['user-offers'] })
       queryClient.invalidateQueries({ queryKey: ['offers'] })
     },
@@ -189,7 +180,6 @@ export const useOfferManagement = () => {
         title: "Success",
         description: "Offer deleted successfully",
       })
-      // Invalidate both queries immediately
       queryClient.invalidateQueries({ queryKey: ['user-offers'] })
       queryClient.invalidateQueries({ queryKey: ['offers'] })
     },

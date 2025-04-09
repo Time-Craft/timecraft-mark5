@@ -1,4 +1,3 @@
-
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Button } from "@/components/ui/button"
@@ -50,7 +49,6 @@ const Offer = () => {
   const [timeCredits, setTimeCredits] = useState([1])
   const { toast } = useToast()
 
-  // Get time balance from the time_balances table
   const { data: timeBalance, isLoading: timeBalanceLoading } = useQuery({
     queryKey: ['time-balance'],
     queryFn: async () => {
@@ -79,7 +77,6 @@ const Offer = () => {
     
     const finalServiceType = serviceType === "Others" ? otherServiceType : serviceType
     
-    // Check if user has enough credits for this specific request
     if ((timeBalance?.balance || 0) < timeCredits[0]) {
       toast({
         title: "Insufficient Credits",
@@ -90,7 +87,7 @@ const Offer = () => {
     }
     
     await createOffer({
-      title: finalServiceType, // Using service type as title since it's required in DB
+      title: finalServiceType,
       description,
       hours: Number(duration),
       duration: Number(duration),
@@ -102,10 +99,8 @@ const Offer = () => {
     navigate('/profile')
   }
 
-  // Determine if the user has any credits left
   const hasNoCredits = (timeBalance?.balance || 0) <= 0
 
-  // Determine the maximum credits available (either 5 or the user's balance, whichever is smaller)
   const maxCredits = Math.min(5, timeBalance?.balance || 0)
 
   return (

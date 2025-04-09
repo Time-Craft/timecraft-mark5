@@ -9,7 +9,7 @@ interface Offer {
   title: string
   description: string
   hours: number
-  time_credits?: number // Added this field
+  timeCredits?: number
   service_type: string 
   user: {
     id: string
@@ -59,7 +59,7 @@ export const useExploreOffers = () => {
         title: offer.title,
         description: offer.description,
         hours: offer.hours,
-        timeCredits: offer.time_credits || offer.hours, // Use time_credits or fallback to hours
+        timeCredits: offer.time_credits,  // Pass the actual time_credits value without fallback
         status: offer.status,
         service_type: offer.service_type || offer.status,
         accepted_by: [],
