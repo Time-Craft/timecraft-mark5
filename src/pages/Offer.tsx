@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { useOfferManagement } from "@/hooks/useOfferManagement"
+import { useCreateOffer } from "@/hooks/useCreateOffer"
 import { 
   Select,
   SelectContent,
@@ -40,7 +40,7 @@ const serviceCategories = [
 
 const Offer = () => {
   const navigate = useNavigate()
-  const { createOffer, isCreating } = useOfferManagement()
+  const { createOffer, isCreating } = useCreateOffer()
   const [description, setDescription] = useState("")
   const [serviceType, setServiceType] = useState("")
   const [otherServiceType, setOtherServiceType] = useState("")
