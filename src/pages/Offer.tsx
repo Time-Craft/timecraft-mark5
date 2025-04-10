@@ -49,38 +49,48 @@ const Offer = () => {
   const [timeCredits, setTimeCredits] = useState([1])
   const { toast } = useToast()
 
-  const { data: timeBalance, isLoading: timeBalanceLoading } = useQuery({
-    queryKey: ['time-balance'],
+  const { data: userOffers, isLoading: userOffersLoading } = useQuery({
+    queryKey: ['user-offers'],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error("No user found")
 
-      console.log('Fetching time balance for user on Offer page:', user.id)
       const { data, error } = await supabase
-        .from('time_balances')
-        .select('balance')
-        .eq('user_id', user.id)
-        .single()
+        .from('offers')
+        .select('time_credits')
+        .eq('profile_id', user.id)
 
       if (error) {
-        console.error('Error fetching time balance on Offer page:', error)
+        console.error('Error fetching user offers:', error)
         throw error
       }
       
-      console.log('Time balance data on Offer page:', data)
       return data
     }
   })
+
+  const calculateTimeBalance = () => {
+    const INITIAL_CREDITS = 30;
+    
+    if (userOffersLoading || !userOffers) {
+      return INITIAL_CREDITS;
+    }
+    
+    const usedCredits = userOffers.reduce((sum, offer) => 
+      sum + (offer.time_credits || 0), 0);
+    
+    return INITIAL_CREDITS - usedCredits;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     const finalServiceType = serviceType === "Others" ? otherServiceType : serviceType
     
-    if ((timeBalance?.balance || 0) < timeCredits[0]) {
+    if (calculateTimeBalance() < timeCredits[0]) {
       toast({
         title: "Insufficient Credits",
-        description: `You only have ${timeBalance?.balance || 0} credits, but this request requires ${timeCredits[0]}.`,
+        description: `You only have ${calculateTimeBalance()} credits, but this request requires ${timeCredits[0]}.`,
         variant: "destructive"
       })
       return
@@ -99,9 +109,9 @@ const Offer = () => {
     navigate('/profile')
   }
 
-  const hasNoCredits = (timeBalance?.balance || 0) <= 0
+  const hasNoCredits = calculateTimeBalance() <= 0
 
-  const maxCredits = Math.min(5, timeBalance?.balance || 0)
+  const maxCredits = Math.min(5, calculateTimeBalance())
 
   return (
     <div className="container mx-auto p-4 max-w-2xl">
@@ -114,7 +124,7 @@ const Offer = () => {
             <div className="flex items-center space-x-2">
               <CreditCard className="h-4 w-4 text-teal" />
               <span className="text-sm font-medium">
-                {timeBalanceLoading ? "Loading..." : `Available: ${timeBalance?.balance || 0} credits`}
+                {userOffersLoading ? "Loading..." : `Available: ${calculateTimeBalance()} credits`}
               </span>
             </div>
           </div>
@@ -240,10 +250,10 @@ const Offer = () => {
                         <span className="text-xs text-muted-foreground">{maxCredits > 0 ? maxCredits : 1} Credits</span>
                       </div>
                       <div className="mt-2 text-center text-sm text-muted-foreground">
-                        {timeCredits[0] > (timeBalance?.balance || 0) ? (
+                        {timeCredits[0] > calculateTimeBalance() ? (
                           <span className="text-destructive">Insufficient credits!</span>
                         ) : (
-                          <span>You have {timeBalance?.balance || 0} credits available</span>
+                          <span>You have {calculateTimeBalance()} credits available</span>
                         )}
                       </div>
                     </div>
@@ -258,7 +268,7 @@ const Offer = () => {
               </Button>
               <Button 
                 type="submit" 
-                disabled={isCreating || timeCredits[0] > (timeBalance?.balance || 0) || hasNoCredits}
+                disabled={isCreating || timeCredits[0] > calculateTimeBalance() || hasNoCredits}
                 className="bg-teal hover:bg-teal/90 text-cream"
               >
                 {isCreating ? "Creating..." : "Create Request"}

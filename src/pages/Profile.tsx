@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -17,7 +16,6 @@ const Profile = () => {
   const queryClient = useQueryClient()
   const [userId, setUserId] = useState<string | null>(null)
 
-  // First fetch the user ID
   useEffect(() => {
     const fetchUserId = async () => {
       const { data } = await supabase.auth.getUser()
@@ -29,7 +27,6 @@ const Profile = () => {
     fetchUserId()
   }, [])
 
-  // Profile subscription
   useEffect(() => {
     if (!userId) return
 
@@ -50,7 +47,6 @@ const Profile = () => {
       )
       .subscribe()
 
-    // Add subscription to time_balances table
     const timeBalanceChannel = supabase
       .channel('profile-time-balance-changes')
       .on(
@@ -68,7 +64,6 @@ const Profile = () => {
       )
       .subscribe()
 
-    // Add subscription to offers table to update for any offer changes
     const offersChannel = supabase
       .channel('profile-offers-changes')
       .on(
@@ -129,7 +124,6 @@ const Profile = () => {
     enabled: !!userId
   })
 
-  // Calculate available time balance based on offers
   const calculateTimeBalance = () => {
     const INITIAL_CREDITS = 30;
     
@@ -137,7 +131,6 @@ const Profile = () => {
       return INITIAL_CREDITS;
     }
     
-    // Sum up all credits used in offers
     const usedCredits = userOffers.reduce((sum, offer) => 
       sum + (offer.time_credits || 0), 0);
     
