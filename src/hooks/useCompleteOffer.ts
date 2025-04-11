@@ -88,6 +88,7 @@ export const useCompleteOffer = () => {
         title: "Success",
         description: "Offer marked as completed and credits transferred",
       })
+      // Invalidate all relevant queries to update the UI
       queryClient.invalidateQueries({ queryKey: ['user-offers'] })
       queryClient.invalidateQueries({ queryKey: ['offers'] })
       queryClient.invalidateQueries({ queryKey: ['time-balance'] })

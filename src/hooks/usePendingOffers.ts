@@ -28,7 +28,7 @@ export const usePendingOffers = () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
 
-      // Get pending and booked offers (we now include booked as well)
+      // Get only pending and booked offers (exclude completed ones)
       const { data: pendingOffersData, error: pendingError } = await supabase
         .from('offers')
         .select(`
@@ -39,12 +39,12 @@ export const usePendingOffers = () => {
             avatar_url
           )
         `)
-        .in('status', ['pending', 'booked'])
+        .in('status', ['pending', 'booked', 'available'])  // Only get non-completed offers
         .eq('profile_id', user.id)
       
       if (pendingError) throw pendingError
 
-      // Get offers the user has applied to
+      // Get non-completed offers the user has applied to
       const { data: applicationsData, error: applicationsError } = await supabase
         .from('offer_applications')
         .select(`
@@ -61,6 +61,11 @@ export const usePendingOffers = () => {
         .eq('applicant_id', user.id)
       
       if (applicationsError) throw applicationsError
+      
+      // Filter out applications for completed offers
+      const activeApplications = applicationsData.filter(app => 
+        app.offers.status !== 'completed'
+      );
 
       // Transform pending offers
       const pendingOffers = pendingOffersData.map(offer => ({
@@ -79,7 +84,7 @@ export const usePendingOffers = () => {
       }));
 
       // Transform applied offers
-      const appliedOffers = applicationsData.map(application => {
+      const appliedOffers = activeApplications.map(application => {
         const offer = application.offers;
         return {
           id: offer.id,
@@ -103,25 +108,8 @@ export const usePendingOffers = () => {
     }
   })
 
-  const completeOffer = useMutation({
-    mutationFn: async (offerId: string) => {
-      const { error } = await supabase
-        .from('offers')
-        .update({ status: 'completed' })
-        .eq('id', offerId)
-      
-      if (error) throw error
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pending-offers-and-applications'] })
-      queryClient.invalidateQueries({ queryKey: ['time-balance'] })
-      queryClient.invalidateQueries({ queryKey: ['user-stats'] })
-    }
-  })
-
   return {
     pendingOffers: data,
-    isLoading,
-    completeOffer: completeOffer.mutate
+    isLoading
   }
 }

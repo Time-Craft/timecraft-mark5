@@ -10,7 +10,7 @@ const PendingOffers = () => {
   const { pendingOffers, isLoading } = usePendingOffers()
   const queryClient = useQueryClient()
 
-  // Set up real-time subscription for offer and application changes
+  // Set up real-time subscription for offer, application and transaction changes
   useEffect(() => {
     const offerChannel = supabase
       .channel('pending-offers-changes')
@@ -41,10 +41,27 @@ const PendingOffers = () => {
         }
       )
       .subscribe()
+      
+    const transactionChannel = supabase
+      .channel('transactions-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'transactions'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['pending-offers-and-applications'] })
+          queryClient.invalidateQueries({ queryKey: ['completed-offers'] })
+        }
+      )
+      .subscribe()
 
     return () => {
       supabase.removeChannel(offerChannel)
       supabase.removeChannel(applicationChannel)
+      supabase.removeChannel(transactionChannel)
     }
   }, [queryClient])
 
