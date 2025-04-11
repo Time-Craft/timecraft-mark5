@@ -1,5 +1,5 @@
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 
 interface PendingOffer {
@@ -19,8 +19,6 @@ interface PendingOffer {
 }
 
 export const usePendingOffers = () => {
-  const queryClient = useQueryClient()
-
   const { data, isLoading } = useQuery({
     queryKey: ['pending-offers-and-applications'],
     queryFn: async () => {
@@ -64,7 +62,7 @@ export const usePendingOffers = () => {
       
       // Filter out applications for completed offers
       const activeApplications = applicationsData.filter(app => 
-        app.offers.status !== 'completed'
+        app.offers?.status !== 'completed'
       );
 
       // Transform pending offers

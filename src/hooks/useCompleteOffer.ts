@@ -26,15 +26,16 @@ export const useCompleteOffer = () => {
         throw new Error('Only the offer owner can mark it as completed')
       }
       
-      // Get the accepted applicant
+      // Get the accepted applicant - use maybeSingle() instead of single()
       const { data: acceptedApplication, error: applicationError } = await supabase
         .from('offer_applications')
         .select('applicant_id')
         .eq('offer_id', offerId)
         .eq('status', 'accepted')
-        .single()
+        .maybeSingle()
       
-      if (applicationError) throw new Error('No accepted application found for this offer')
+      if (applicationError) throw applicationError
+      if (!acceptedApplication) throw new Error('No accepted application found for this offer')
       
       // Update the offer status to completed
       const { error: updateError } = await supabase

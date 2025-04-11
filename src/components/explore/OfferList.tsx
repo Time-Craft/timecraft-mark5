@@ -57,6 +57,7 @@ const OfferList = ({ sortByRelevance = false }: OfferListProps) => {
         () => {
           queryClient.invalidateQueries({ queryKey: ['offers'] })
           queryClient.invalidateQueries({ queryKey: ['completed-offers'] })
+          queryClient.invalidateQueries({ queryKey: ['pending-offers-and-applications'] })
         }
       )
       .subscribe()
