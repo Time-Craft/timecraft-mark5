@@ -43,15 +43,14 @@ const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => 
           hours,
           created_at,
           offer_id,
-          offers!inner(
+          offers(
             title,
             description,
             service_type,
-            time_credits,
-            status,
-            profiles!inner(
-              username
-            )
+            time_credits
+          ),
+          profiles!user_id(
+            username
           )
         `)
         .eq('provider_id', userId)
@@ -65,13 +64,14 @@ const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => 
       // Transform the data to match our needs
       return data.map(transaction => ({
         id: transaction.id,
-        title: transaction.offers.title,
-        description: transaction.offers.description,
+        title: transaction.offers?.title || 'Unknown Title',
+        description: transaction.offers?.description || 'No description available',
         service_type: transaction.service,
-        time_credits: transaction.offers.time_credits,
+        time_credits: transaction.offers?.time_credits || 0,
         hours: transaction.hours,
         created_at: transaction.created_at,
-        requester_username: transaction.offers.profiles.username
+        completed_at: transaction.created_at, // Using created_at as completed_at
+        requester_username: transaction.profiles?.username || 'Unknown User'
       }))
     },
     enabled: !!userId
@@ -93,7 +93,7 @@ const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => 
           created_at,
           provider_id,
           offer_id,
-          offers!inner(
+          offers(
             title,
             description,
             service_type,
@@ -114,13 +114,14 @@ const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => 
       // Transform the data to match our needs
       return data.map(transaction => ({
         id: transaction.id,
-        title: transaction.offers.title,
-        description: transaction.offers.description,
+        title: transaction.offers?.title || 'Unknown Title',
+        description: transaction.offers?.description || 'No description available',
         service_type: transaction.service,
-        time_credits: transaction.offers.time_credits,
+        time_credits: transaction.offers?.time_credits || 0,
         hours: transaction.hours,
         created_at: transaction.created_at,
-        provider_username: transaction.profiles?.username || 'Unknown'
+        completed_at: transaction.created_at, // Using created_at as completed_at
+        provider_username: transaction.profiles?.username || 'Unknown Provider'
       }))
     },
     enabled: !!userId
