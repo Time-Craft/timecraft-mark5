@@ -8,12 +8,10 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { supabase } from "./integrations/supabase/client"
 import MainNav from "./components/MainNav"
 
-// Import Login component directly instead of lazy loading it
-import Login from "./pages/Login"
-
-// Lazy load other route components
+// Lazy load route components
 const Home = React.lazy(() => import("./pages/Home"))
 const Explore = React.lazy(() => import("./pages/Explore"))
+const Login = React.lazy(() => import("./pages/Login"))
 const Offer = React.lazy(() => import("./pages/Offer"))
 const Profile = React.lazy(() => import("./pages/Profile"))
 const Onboarding = React.lazy(() => import("./pages/Onboarding"))
