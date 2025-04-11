@@ -34,8 +34,8 @@ export const usePendingOffers = () => {
           schema: 'public',
           table: 'offer_applications'
         },
-        () => {
-          console.log('Applications changed, invalidating queries')
+        (payload) => {
+          console.log('Applications changed:', payload)
           queryClient.invalidateQueries({ queryKey: ['pending-offers-and-applications'] })
         }
       )
@@ -51,8 +51,8 @@ export const usePendingOffers = () => {
           schema: 'public',
           table: 'transactions'
         },
-        () => {
-          console.log('Transactions changed, invalidating queries')
+        (payload) => {
+          console.log('Transactions changed:', payload)
           queryClient.invalidateQueries({ queryKey: ['pending-offers-and-applications'] })
           queryClient.invalidateQueries({ queryKey: ['time-balance'] })
           queryClient.invalidateQueries({ queryKey: ['completed-offers'] })
@@ -60,9 +60,28 @@ export const usePendingOffers = () => {
       )
       .subscribe()
       
+    // Listen for offer status changes
+    const offersChannel = supabase
+      .channel('pending-offers-status-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'offers'
+        },
+        (payload) => {
+          console.log('Offers changed:', payload)
+          queryClient.invalidateQueries({ queryKey: ['pending-offers-and-applications'] })
+          queryClient.invalidateQueries({ queryKey: ['time-balance'] })
+        }
+      )
+      .subscribe()
+      
     return () => {
       supabase.removeChannel(applicationsChannel)
       supabase.removeChannel(transactionsChannel)
+      supabase.removeChannel(offersChannel)
     }
   }, [queryClient])
 
@@ -72,6 +91,8 @@ export const usePendingOffers = () => {
       // Get current user
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Not authenticated')
+      
+      console.log('Fetching pending offers and applications for user:', user.id)
 
       // Get only pending and booked offers (exclude completed ones)
       const { data: pendingOffersData, error: pendingError } = await supabase
@@ -87,7 +108,12 @@ export const usePendingOffers = () => {
         .in('status', ['pending', 'booked', 'available'])  // Only get non-completed offers
         .eq('profile_id', user.id)
       
-      if (pendingError) throw pendingError
+      if (pendingError) {
+        console.error('Error fetching pending offers:', pendingError)
+        throw pendingError
+      }
+      
+      console.log('Pending offers fetched:', pendingOffersData?.length || 0)
 
       // Get non-completed offers the user has applied to
       const { data: applicationsData, error: applicationsError } = await supabase
@@ -105,17 +131,22 @@ export const usePendingOffers = () => {
         `)
         .eq('applicant_id', user.id)
       
-      if (applicationsError) throw applicationsError
+      if (applicationsError) {
+        console.error('Error fetching applications:', applicationsError)
+        throw applicationsError
+      }
+      
+      console.log('Applications fetched:', applicationsData?.length || 0)
       
       // Filter out applications for completed offers
       const activeApplications = applicationsData.filter(app => 
-        app.offers?.status !== 'completed'
+        app.offers && app.offers.status !== 'completed'
       );
 
       console.log('Active applications found:', activeApplications.length)
 
       // Transform pending offers
-      const pendingOffers = pendingOffersData.map(offer => ({
+      const pendingOffers = pendingOffersData?.map(offer => ({
         id: offer.id,
         title: offer.title,
         description: offer.description,
@@ -128,7 +159,7 @@ export const usePendingOffers = () => {
           name: offer.profiles?.username || 'Unknown User',
           avatar: offer.profiles?.avatar_url || '/placeholder.svg'
         }
-      }));
+      })) || [];
 
       // Transform applied offers
       const appliedOffers = activeApplications.map(application => {

@@ -24,6 +24,7 @@ const PendingOffers = () => {
         (payload) => {
           console.log('Offer changed:', payload)
           queryClient.invalidateQueries({ queryKey: ['pending-offers-and-applications'] })
+          queryClient.invalidateQueries({ queryKey: ['time-balance'] })
         }
       )
       .subscribe()
@@ -53,9 +54,29 @@ const PendingOffers = () => {
           schema: 'public',
           table: 'transactions'
         },
-        () => {
+        (payload) => {
+          console.log('Transaction changed:', payload)
           queryClient.invalidateQueries({ queryKey: ['pending-offers-and-applications'] })
           queryClient.invalidateQueries({ queryKey: ['completed-offers'] })
+          queryClient.invalidateQueries({ queryKey: ['time-balance'] })
+          queryClient.invalidateQueries({ queryKey: ['user-stats'] })
+        }
+      )
+      .subscribe()
+      
+    const timeBalanceChannel = supabase
+      .channel('time-balance-changes-home')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'time_balances'
+        },
+        (payload) => {
+          console.log('Time balance changed:', payload)
+          queryClient.invalidateQueries({ queryKey: ['time-balance'] })
+          queryClient.invalidateQueries({ queryKey: ['user-stats'] })
         }
       )
       .subscribe()
@@ -64,6 +85,7 @@ const PendingOffers = () => {
       supabase.removeChannel(offerChannel)
       supabase.removeChannel(applicationChannel)
       supabase.removeChannel(transactionChannel)
+      supabase.removeChannel(timeBalanceChannel)
     }
   }, [queryClient])
 
