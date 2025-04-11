@@ -41,8 +41,28 @@ export const usePendingOffers = () => {
       )
       .subscribe()
       
+    // Listen for transactions which indicate completed offers
+    const transactionsChannel = supabase
+      .channel('pending-transactions-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'transactions'
+        },
+        () => {
+          console.log('Transactions changed, invalidating queries')
+          queryClient.invalidateQueries({ queryKey: ['pending-offers-and-applications'] })
+          queryClient.invalidateQueries({ queryKey: ['time-balance'] })
+          queryClient.invalidateQueries({ queryKey: ['completed-offers'] })
+        }
+      )
+      .subscribe()
+      
     return () => {
       supabase.removeChannel(applicationsChannel)
+      supabase.removeChannel(transactionsChannel)
     }
   }, [queryClient])
 
