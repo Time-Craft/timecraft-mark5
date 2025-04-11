@@ -1,6 +1,8 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
+import { useEffect } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface PendingOffer {
   id: string
@@ -19,6 +21,31 @@ interface PendingOffer {
 }
 
 export const usePendingOffers = () => {
+  const queryClient = useQueryClient()
+  
+  // Set up real-time subscriptions for any changes to offer_applications
+  useEffect(() => {
+    const applicationsChannel = supabase
+      .channel('pending-applications-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'offer_applications'
+        },
+        () => {
+          console.log('Applications changed, invalidating queries')
+          queryClient.invalidateQueries({ queryKey: ['pending-offers-and-applications'] })
+        }
+      )
+      .subscribe()
+      
+    return () => {
+      supabase.removeChannel(applicationsChannel)
+    }
+  }, [queryClient])
+
   const { data, isLoading } = useQuery({
     queryKey: ['pending-offers-and-applications'],
     queryFn: async () => {
@@ -65,6 +92,8 @@ export const usePendingOffers = () => {
         app.offers?.status !== 'completed'
       );
 
+      console.log('Active applications found:', activeApplications.length)
+
       // Transform pending offers
       const pendingOffers = pendingOffersData.map(offer => ({
         id: offer.id,
@@ -84,6 +113,8 @@ export const usePendingOffers = () => {
       // Transform applied offers
       const appliedOffers = activeApplications.map(application => {
         const offer = application.offers;
+        if (!offer) return null; // Skip if offer is null
+        
         return {
           id: offer.id,
           title: offer.title,
@@ -99,7 +130,10 @@ export const usePendingOffers = () => {
             avatar: offer.profiles?.avatar_url || '/placeholder.svg'
           }
         };
-      });
+      }).filter(Boolean); // Remove nulls
+
+      console.log('Total offers to display in My Offers & Applications:', 
+                 pendingOffers.length + appliedOffers.length)
 
       // Combine both types of offers
       return [...pendingOffers, ...appliedOffers] as PendingOffer[]

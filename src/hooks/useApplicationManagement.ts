@@ -1,3 +1,4 @@
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/components/ui/use-toast'
@@ -18,9 +19,11 @@ export const useApplicationManagement = (offerId?: string) => {
           table: 'offer_applications'
         },
         () => {
+          console.log('Applications changed via websocket')
           queryClient.invalidateQueries({ queryKey: ['offer-applications'] })
           queryClient.invalidateQueries({ queryKey: ['user-application'] })
           queryClient.invalidateQueries({ queryKey: ['user-applications'] })
+          queryClient.invalidateQueries({ queryKey: ['pending-offers-and-applications'] })
         }
       )
       .subscribe()
@@ -111,6 +114,7 @@ export const useApplicationManagement = (offerId?: string) => {
       queryClient.invalidateQueries({ queryKey: ['offer-applications'] })
       queryClient.invalidateQueries({ queryKey: ['user-application'] })
       queryClient.invalidateQueries({ queryKey: ['user-applications'] })
+      queryClient.invalidateQueries({ queryKey: ['pending-offers-and-applications'] })
     },
     onError: (error: Error) => {
       toast({

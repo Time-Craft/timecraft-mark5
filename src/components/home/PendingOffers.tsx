@@ -21,7 +21,8 @@ const PendingOffers = () => {
           schema: 'public',
           table: 'offers'
         },
-        () => {
+        (payload) => {
+          console.log('Offer changed:', payload)
           queryClient.invalidateQueries({ queryKey: ['pending-offers-and-applications'] })
         }
       )
@@ -36,7 +37,8 @@ const PendingOffers = () => {
           schema: 'public',
           table: 'offer_applications'
         },
-        () => {
+        (payload) => {
+          console.log('Application changed:', payload)
           queryClient.invalidateQueries({ queryKey: ['pending-offers-and-applications'] })
         }
       )
@@ -93,9 +95,14 @@ const PendingOffers = () => {
     )
   }
 
+  console.log('Pending offers to render:', pendingOffers.length)
+  
   // Group offers by type (my offers vs applied offers)
   const myOffers = pendingOffers.filter(offer => !offer.isApplied)
   const appliedOffers = pendingOffers.filter(offer => offer.isApplied)
+  
+  console.log('My offers count:', myOffers.length)
+  console.log('Applied offers count:', appliedOffers.length)
 
   return (
     <Card className="gradient-border card-hover">
