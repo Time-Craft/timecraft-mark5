@@ -1,11 +1,12 @@
 
 import { useState } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "@/integrations/supabase/client"
 import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { CheckCircle2, User, Users } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { CheckCircle2, BadgeCheck } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 interface CompletedOffersProps {
   userId: string | null
@@ -21,20 +22,71 @@ interface CompletedOffer {
   time_credits: number
   created_at: string
   completed_at: string
-  provider_username?: string
-  requester_username?: string
+  username?: string
+  claimed?: boolean
+  hours?: number
+  transaction_id?: string
+  isOwner?: boolean 
 }
 
 const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => {
-  const [activeTab, setActiveTab] = useState<'by-you' | 'for-you'>('for-you')
+  const { toast } = useToast()
+  const queryClient = useQueryClient()
+  const [claimedTransactions, setClaimedTransactions] = useState<string[]>([])
   
-  // Fetch offers completed BY the user (user was the service provider)
-  const { data: completedByYou, isLoading: byYouLoading } = useQuery({
-    queryKey: ['completed-offers', userId, 'by-you'],
+  // Add mutation for claiming credits
+  const claimCreditsMutation = useMutation({
+    mutationFn: async (transactionId: string) => {
+      console.log("Claiming credits for transaction:", transactionId)
+      const { data, error } = await supabase
+        .from('transactions')
+        .update({ claimed: true })
+        .eq('id', transactionId)
+        .select()
+        .single()
+      
+      if (error) {
+        console.error("Error claiming credits:", error)
+        throw error
+      }
+      console.log("Successfully claimed credits, transaction updated:", data)
+      return data
+    },
+    onSuccess: (data, transactionId) => {
+      toast({
+        title: "Credits claimed successfully",
+        description: "The time credits have been added to your balance",
+        variant: "default",
+      })
+      
+      // Update local state to immediately reflect claimed status
+      setClaimedTransactions(prev => [...prev, transactionId])
+      
+      // Invalidate relevant queries to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ['completed-offers'] })
+      queryClient.invalidateQueries({ queryKey: ['time-balance'] })
+      queryClient.invalidateQueries({ queryKey: ['time-balance', userId] })
+      queryClient.invalidateQueries({ queryKey: ['user-stats'] })
+    },
+    onError: (error) => {
+      console.error("Error claiming credits:", error)
+      toast({
+        title: "Failed to claim credits",
+        description: error.message,
+        variant: "destructive",
+      })
+    }
+  })
+  
+  // Fetch all completed offers (both by you and for you)
+  const { data: completedOffers, isLoading } = useQuery({
+    queryKey: ['completed-offers', userId],
     queryFn: async () => {
       if (!userId) return []
       
-      // Get transactions where the user was the provider
+      console.log("Fetching all completed services for user:", userId)
+      
+      // Get transactions where the user was involved (either as provider or requester)
       const { data, error } = await supabase
         .from('transactions')
         .select(`
@@ -43,191 +95,127 @@ const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => 
           hours,
           created_at,
           offer_id,
-          user_id
+          user_id,
+          provider_id,
+          claimed
         `)
-        .eq('provider_id', userId)
+        .or(`provider_id.eq.${userId},user_id.eq.${userId}`)
         .order('created_at', { ascending: false })
       
       if (error) {
-        console.error('Error fetching completed offers by you:', error)
+        console.error('Error fetching completed offers:', error)
         throw error
       }
 
+      console.log("Found transactions:", data?.length || 0)
+
       // For each transaction, get the offer details
       const completedOffers = []
+      const processedOfferIds = new Set() // Track processed offer IDs to avoid duplicates
       
-      for (const transaction of data) {
+      for (const transaction of data || []) {
+        // Skip if we've already processed this offer
+        if (processedOfferIds.has(transaction.offer_id)) {
+          console.log('Skipping duplicate offer:', transaction.offer_id)
+          continue
+        }
+        
         // Get offer details
         const { data: offerData, error: offerError } = await supabase
           .from('offers')
-          .select('title, description, service_type, time_credits')
+          .select('title, description, service_type, time_credits, profile_id')
           .eq('id', transaction.offer_id)
-          .single()
+          .maybeSingle()
           
         if (offerError) {
           console.warn(`Error fetching offer ${transaction.offer_id}:`, offerError)
           continue
         }
         
-        // Get requester username
+        // Skip offers with missing essential data
+        if (!offerData?.title || !offerData?.description) {
+          console.log('Skipping offer with missing data:', transaction.offer_id)
+          continue
+        }
+        
+        // Mark this offer as processed
+        processedOfferIds.add(transaction.offer_id)
+        
+        // Determine if the current user is the offer owner (requester)
+        const isOwner = offerData?.profile_id === userId;
+        
+        // Get username of the other party (provider if user is requester, requester if user is provider)
+        const otherUserId = isOwner ? transaction.provider_id : transaction.user_id;
+        
         const { data: userData, error: userError } = await supabase
           .from('profiles')
           .select('username')
-          .eq('id', transaction.user_id)
-          .single()
+          .eq('id', otherUserId)
+          .maybeSingle()
           
         if (userError) {
-          console.warn(`Error fetching user ${transaction.user_id}:`, userError)
+          console.warn(`Error fetching user ${otherUserId}:`, userError)
         }
 
-        completedOffers.push({
-          id: transaction.id,
-          title: offerData?.title || 'Unknown Title',
-          description: offerData?.description || 'No description available',
-          service_type: transaction.service,
-          time_credits: offerData?.time_credits || 0,
-          hours: transaction.hours,
-          created_at: transaction.created_at,
-          completed_at: transaction.created_at, // Using created_at as completed_at
-          requester_username: userData?.username || 'Unknown User'
-        })
-      }
-
-      return completedOffers
-    },
-    enabled: !!userId
-  })
-  
-  // Fetch offers completed FOR the user (user made the request)
-  const { data: completedForYou, isLoading: forYouLoading } = useQuery({
-    queryKey: ['completed-offers', userId, 'for-you'],
-    queryFn: async () => {
-      if (!userId) return []
-      
-      // Get transactions where user requested the service
-      const { data, error } = await supabase
-        .from('transactions')
-        .select(`
-          id,
-          service,
-          hours,
-          created_at,
-          provider_id,
-          offer_id
-        `)
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-      
-      if (error) {
-        console.error('Error fetching completed offers for you:', error)
-        throw error
-      }
-
-      // For each transaction, get the offer details
-      const completedOffers = []
-      
-      for (const transaction of data) {
-        // Get offer details
-        const { data: offerData, error: offerError } = await supabase
-          .from('offers')
-          .select('title, description, service_type, time_credits')
-          .eq('id', transaction.offer_id)
-          .single()
-          
-        if (offerError) {
-          console.warn(`Error fetching offer ${transaction.offer_id}:`, offerError)
+        // Skip offers where we couldn't find the other user's username
+        if (!userData?.username) {
+          console.log('Skipping offer with missing username data:', transaction.offer_id)
           continue
         }
-        
-        // Get provider username
-        const { data: providerData, error: providerError } = await supabase
-          .from('profiles')
-          .select('username')
-          .eq('id', transaction.provider_id)
-          .single()
-          
-        if (providerError) {
-          console.warn(`Error fetching provider ${transaction.provider_id}:`, providerError)
-        }
 
         completedOffers.push({
-          id: transaction.id,
-          title: offerData?.title || 'Unknown Title',
-          description: offerData?.description || 'No description available',
-          service_type: transaction.service,
-          time_credits: offerData?.time_credits || 0,
+          id: transaction.offer_id,
+          transaction_id: transaction.id,
+          title: offerData?.title,
+          description: offerData?.description,
+          service_type: offerData?.service_type || transaction.service,
+          time_credits: offerData?.time_credits || transaction.hours || 0,
           hours: transaction.hours,
           created_at: transaction.created_at,
           completed_at: transaction.created_at, // Using created_at as completed_at
-          provider_username: providerData?.username || 'Unknown Provider'
+          username: userData?.username,
+          claimed: transaction.claimed,
+          isOwner: isOwner // Flag to determine if current user created the offer
         })
       }
 
+      console.log("Processed completed offers:", completedOffers.length)
       return completedOffers
     },
     enabled: !!userId
   })
 
+  const handleClaimCredits = async (transactionId: string) => {
+    try {
+      console.log("Attempting to claim credits for transaction:", transactionId)
+      await claimCreditsMutation.mutate(transactionId)
+    } catch (error) {
+      console.error('Error claiming credits:', error)
+    }
+  }
+
   return (
-    <div>
-      <Tabs defaultValue="for-you" onValueChange={(val) => setActiveTab(val as 'by-you' | 'for-you')}>
-        <TabsList className="grid w-full grid-cols-2 mb-4">
-          <TabsTrigger value="for-you" className="flex items-center">
-            <User className="h-4 w-4 mr-2" />
-            FOR YOU
-          </TabsTrigger>
-          <TabsTrigger value="by-you" className="flex items-center">
-            <Users className="h-4 w-4 mr-2" />
-            BY YOU
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="for-you">
-          <div className="space-y-4">
-            {forYouLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-36 w-full" />
-                <Skeleton className="h-36 w-full" />
-              </div>
-            ) : completedForYou?.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                No services have been completed for you yet
-              </p>
-            ) : (
-              completedForYou?.map((offer) => (
-                <CompletedOfferCard
-                  key={offer.id}
-                  offer={offer}
-                  isForYou={true}
-                />
-              ))
-            )}
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="by-you">
-          <div className="space-y-4">
-            {byYouLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-36 w-full" />
-                <Skeleton className="h-36 w-full" />
-              </div>
-            ) : completedByYou?.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                You haven't completed any services yet
-              </p>
-            ) : (
-              completedByYou?.map((offer) => (
-                <CompletedOfferCard
-                  key={offer.id}
-                  offer={offer}
-                  isForYou={false}
-                />
-              ))
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
+    <div className="space-y-4">
+      {isLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-36 w-full" />
+          <Skeleton className="h-36 w-full" />
+        </div>
+      ) : completedOffers?.length === 0 ? (
+        <p className="text-center text-muted-foreground py-8">
+          No completed exchanges found
+        </p>
+      ) : (
+        completedOffers?.map((offer) => (
+          <CompletedOfferCard
+            key={`offer-${offer.transaction_id}`}
+            offer={offer}
+            onClaimCredits={handleClaimCredits}
+            isClaimingCredits={claimCreditsMutation.isPending}
+            isClaimedLocally={claimedTransactions.includes(offer.transaction_id || '')}
+          />
+        ))
+      )}
     </div>
   )
 }
@@ -235,11 +223,25 @@ const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => 
 // Component for displaying a completed offer card
 const CompletedOfferCard = ({ 
   offer, 
-  isForYou 
+  onClaimCredits,
+  isClaimingCredits,
+  isClaimedLocally
 }: { 
   offer: CompletedOffer, 
-  isForYou: boolean 
+  onClaimCredits?: (transactionId: string) => void,
+  isClaimingCredits?: boolean,
+  isClaimedLocally?: boolean
 }) => {
+  // Determine if the offer is claimed either in database or locally
+  const isClaimed = offer.claimed || isClaimedLocally;
+  
+  // Only show claim button if:
+  // 1. The offer wasn't created by the current user (not the owner)
+  // 2. The offer hasn't been claimed yet (either in database or locally)
+  // 3. There is a claim handler function
+  // 4. There is a transaction ID to claim
+  const showClaimButton = !offer.isOwner && !isClaimed && onClaimCredits && offer.transaction_id;
+
   return (
     <Card className="gradient-border">
       <CardContent className="p-6">
@@ -250,7 +252,7 @@ const CompletedOfferCard = ({
           </div>
           <div className="flex items-center text-green-600 bg-green-50 px-2 py-1 rounded-full text-xs font-medium">
             <CheckCircle2 className="h-3 w-3 mr-1" />
-            Completed
+            {isClaimed ? "Claimed" : "Completed"}
           </div>
         </div>
         
@@ -266,11 +268,32 @@ const CompletedOfferCard = ({
           </div>
         </div>
         
-        <div className="mt-4 pt-3 border-t border-navy/10 text-sm">
-          {isForYou ? (
-            <p>Completed by: <span className="font-medium">{offer.provider_username}</span></p>
-          ) : (
-            <p>Requested by: <span className="font-medium">{offer.requester_username}</span></p>
+        <div className="mt-4 pt-3 border-t border-navy/10 text-sm flex justify-between items-center">
+          <div>
+            {offer.isOwner ? (
+              <p>Completed by: <span className="font-medium">{offer.username}</span></p>
+            ) : (
+              <p>Requested by: <span className="font-medium">{offer.username}</span></p>
+            )}
+          </div>
+          
+          {showClaimButton && (
+            <Button 
+              onClick={() => onClaimCredits?.(offer.transaction_id!)} 
+              disabled={isClaimingCredits}
+              size="sm"
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <BadgeCheck className="h-4 w-4 mr-2" />
+              Claim {offer.hours} Credits
+            </Button>
+          )}
+          
+          {!offer.isOwner && isClaimed && (
+            <div className="flex items-center text-green-700 font-medium text-sm">
+              <BadgeCheck className="h-4 w-4 mr-1" />
+              Credits Claimed
+            </div>
           )}
         </div>
       </CardContent>

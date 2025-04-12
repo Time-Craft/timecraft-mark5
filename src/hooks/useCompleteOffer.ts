@@ -1,3 +1,4 @@
+
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/integrations/supabase/client'
 import { useToast } from '@/components/ui/use-toast'
@@ -8,6 +9,7 @@ export const useCompleteOffer = () => {
 
   const completeOffer = useMutation({
     mutationFn: async (offerId: string) => {
+      console.log("Completing offer:", offerId)
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('User not authenticated')
 
@@ -18,14 +20,17 @@ export const useCompleteOffer = () => {
         .eq('id', offerId)
         .single()
       
-      if (offerError) throw offerError
+      if (offerError) {
+        console.error("Error fetching offer:", offerError)
+        throw offerError
+      }
       
       // Verify the current user is the offer owner
       if (offer.profile_id !== user.id) {
         throw new Error('Only the offer owner can mark it as completed')
       }
       
-      // Get the accepted applicant - using maybeSingle() to handle cases when there's no accepted application
+      // Get the accepted applicant
       const { data: acceptedApplication, error: applicationError } = await supabase
         .from('offer_applications')
         .select('applicant_id')
@@ -33,8 +38,16 @@ export const useCompleteOffer = () => {
         .eq('status', 'accepted')
         .maybeSingle()
       
-      if (applicationError) throw applicationError
-      if (!acceptedApplication) throw new Error('No accepted application found for this offer')
+      if (applicationError) {
+        console.error("Error fetching accepted application:", applicationError)
+        throw applicationError
+      }
+      
+      if (!acceptedApplication) {
+        throw new Error('No accepted application found for this offer')
+      }
+      
+      console.log("Accepted application found:", acceptedApplication)
       
       // Update the offer status to completed
       const { error: updateError } = await supabase
@@ -45,52 +58,33 @@ export const useCompleteOffer = () => {
         })
         .eq('id', offerId)
       
-      if (updateError) throw updateError
-      
-      // Check if provider already has a time balance
-      const { data: currentBalance, error: balanceReadError } = await supabase
-        .from('time_balances')
-        .select('balance')
-        .eq('user_id', acceptedApplication.applicant_id)
-        .maybeSingle()
-      
-      // If no balance entry exists yet, create one with the earned credits
-      if (!currentBalance) {
-        const { error: createBalanceError } = await supabase
-          .from('time_balances')
-          .insert({ 
-            user_id: acceptedApplication.applicant_id,
-            balance: offer.time_credits || 1
-          })
-        
-        if (createBalanceError) throw createBalanceError
-      } else {
-        // Otherwise update the existing balance
-        const newBalance = currentBalance.balance + (offer.time_credits || 1)
-        
-        const { error: balanceError } = await supabase
-          .from('time_balances')
-          .update({ 
-            balance: newBalance,
-            updated_at: new Date().toISOString()
-          })
-          .eq('user_id', acceptedApplication.applicant_id)
-        
-        if (balanceError) throw balanceError
+      if (updateError) {
+        console.error("Error updating offer status:", updateError)
+        throw updateError
       }
       
-      // Create a transaction record
-      const { error: transactionError } = await supabase
+      console.log("Offer marked as completed, creating transaction record")
+      
+      // Create a transaction record (but don't transfer credits yet - provider needs to claim them)
+      const { data: transaction, error: transactionError } = await supabase
         .from('transactions')
         .insert({
           service: offer.service_type || 'Time Exchange',
           hours: offer.time_credits || 1,
           user_id: user.id,  // Requester
           provider_id: acceptedApplication.applicant_id,  // Service provider
-          offer_id: offerId
+          offer_id: offerId,
+          claimed: false  // Start as unclaimed
         })
+        .select()
+        .single()
       
-      if (transactionError) throw transactionError
+      if (transactionError) {
+        console.error("Error creating transaction:", transactionError)
+        throw transactionError
+      }
+
+      console.log("Transaction created successfully:", transaction)
 
       return {
         success: true,
@@ -101,7 +95,7 @@ export const useCompleteOffer = () => {
     onSuccess: (result) => {
       toast({
         title: "Success",
-        description: `Offer marked as completed and ${result.credits} credits transferred`,
+        description: `Offer marked as completed. The service provider can now claim ${result.credits} credits.`,
       })
       
       // Invalidate all relevant queries to update the UI
@@ -110,11 +104,17 @@ export const useCompleteOffer = () => {
       queryClient.invalidateQueries({ queryKey: ['time-balance'] })
       queryClient.invalidateQueries({ queryKey: ['user-stats'] })
       queryClient.invalidateQueries({ queryKey: ['completed-offers'] })
+      queryClient.invalidateQueries({ queryKey: ['completed-offers', undefined, 'for-you'] })
+      queryClient.invalidateQueries({ queryKey: ['completed-offers', undefined, 'by-you'] })
       queryClient.invalidateQueries({ queryKey: ['pending-offers-and-applications'] })
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error("Error completing offer:", error)
-      // We're removing the error toast as requested
+      toast({
+        title: "Error",
+        description: `Failed to complete offer: ${error.message}`,
+        variant: "destructive",
+      })
     }
   })
 
