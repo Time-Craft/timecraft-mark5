@@ -8,7 +8,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { supabase } from "./integrations/supabase/client"
 import MainNav from "./components/MainNav"
 import Home from "./pages/Home" // Direct import for Home
-import Index from "./pages/Index" // Import the Index component
 
 // Lazy load other route components
 const Explore = React.lazy(() => import("./pages/Explore"))
@@ -182,8 +181,7 @@ const App = () => {
                   </>
                 ) : (
                   <>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/home" element={<Home />} />
+                    <Route path="/" element={<Home />} />
                     <Route path="/explore" element={<Explore />} />
                     <Route path="/offer" element={<Offer />} />
                     <Route path="/profile" element={<Profile />} />
