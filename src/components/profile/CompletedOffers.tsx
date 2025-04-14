@@ -1,4 +1,3 @@
-
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "@/integrations/supabase/client"
@@ -7,7 +6,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, BadgeCheck } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 interface CompletedOffersProps {
   userId: string | null
@@ -34,7 +32,7 @@ const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => 
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [claimedTransactions, setClaimedTransactions] = useState<string[]>([])
-  
+
   const claimCreditsMutation = useMutation({
     mutationFn: async (transactionId: string) => {
       console.log("Claiming credits for transaction:", transactionId)
@@ -65,17 +63,9 @@ const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => 
       queryClient.invalidateQueries({ queryKey: ['time-balance'] })
       queryClient.invalidateQueries({ queryKey: ['time-balance', userId] })
       queryClient.invalidateQueries({ queryKey: ['user-stats'] })
-    },
-    onError: (error) => {
-      console.error("Error claiming credits:", error)
-      toast({
-        title: "Failed to claim credits",
-        description: error.message,
-        variant: "destructive",
-      })
     }
   })
-  
+
   const { data: completedOffers, isLoading } = useQuery({
     queryKey: ['completed-offers', userId],
     queryFn: async () => {
@@ -182,63 +172,28 @@ const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => 
     }
   }
 
-  const completedForOthers = completedOffers?.filter(offer => !offer.isOwner) || []
-  const completedByOthers = completedOffers?.filter(offer => offer.isOwner) || []
-
   return (
     <div className="space-y-4">
-      <Tabs defaultValue="completed-by-me" className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="completed-by-me">Completed by Me</TabsTrigger>
-          <TabsTrigger value="completed-for-me">Completed for Me</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="completed-by-me">
-          {isLoading ? (
-            <div className="space-y-4">
-              <Skeleton className="h-36 w-full" />
-              <Skeleton className="h-36 w-full" />
-            </div>
-          ) : completedForOthers.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No completed exchanges found
-            </p>
-          ) : (
-            completedForOthers.map((offer) => (
-              <CompletedOfferCard
-                key={`offer-${offer.transaction_id}`}
-                offer={offer}
-                onClaimCredits={handleClaimCredits}
-                isClaimingCredits={claimCreditsMutation.isPending}
-                isClaimedLocally={claimedTransactions.includes(offer.transaction_id || '')}
-              />
-            ))
-          )}
-        </TabsContent>
-        
-        <TabsContent value="completed-for-me">
-          {isLoading ? (
-            <div className="space-y-4">
-              <Skeleton className="h-36 w-full" />
-              <Skeleton className="h-36 w-full" />
-            </div>
-          ) : completedByOthers.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No completed exchanges found
-            </p>
-          ) : (
-            completedByOthers.map((offer) => (
-              <CompletedOfferCard
-                key={`offer-${offer.transaction_id}`}
-                offer={offer}
-                onClaimCredits={handleClaimCredits}
-                isClaimingCredits={claimCreditsMutation.isPending}
-                isClaimedLocally={claimedTransactions.includes(offer.transaction_id || '')}
-              />
-            ))
-          )}
-        </TabsContent>
-      </Tabs>
+      {isLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-36 w-full" />
+          <Skeleton className="h-36 w-full" />
+        </div>
+      ) : completedOffers?.length === 0 ? (
+        <p className="text-center text-muted-foreground py-8">
+          No completed exchanges found
+        </p>
+      ) : (
+        completedOffers?.map((offer) => (
+          <CompletedOfferCard
+            key={`offer-${offer.transaction_id}`}
+            offer={offer}
+            onClaimCredits={handleClaimCredits}
+            isClaimingCredits={claimCreditsMutation.isPending}
+            isClaimedLocally={claimedTransactions.includes(offer.transaction_id || '')}
+          />
+        ))
+      )}
     </div>
   )
 }
