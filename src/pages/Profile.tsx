@@ -136,6 +136,7 @@ const Profile = () => {
         .from('offers')
         .select('*')
         .eq('profile_id', userId)
+        .neq('status', 'completed') // Don't fetch completed offers
         .order('created_at', { ascending: false })
 
       if (error) throw error
