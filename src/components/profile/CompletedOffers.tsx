@@ -182,9 +182,8 @@ const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => 
     }
   }
 
-  // Properly filter the offers based on isOwner property
-  const completedByMe = completedOffers?.filter(offer => !offer.isOwner) || []
-  const completedForMe = completedOffers?.filter(offer => offer.isOwner) || []
+  const completedForOthers = completedOffers?.filter(offer => !offer.isOwner) || []
+  const completedByOthers = completedOffers?.filter(offer => offer.isOwner) || []
 
   return (
     <div className="space-y-4">
@@ -200,12 +199,12 @@ const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => 
               <Skeleton className="h-36 w-full" />
               <Skeleton className="h-36 w-full" />
             </div>
-          ) : completedByMe.length === 0 ? (
+          ) : completedForOthers.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
               No completed exchanges found
             </p>
           ) : (
-            completedByMe.map((offer) => (
+            completedForOthers.map((offer) => (
               <CompletedOfferCard
                 key={`offer-${offer.transaction_id}`}
                 offer={offer}
@@ -223,12 +222,12 @@ const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => 
               <Skeleton className="h-36 w-full" />
               <Skeleton className="h-36 w-full" />
             </div>
-          ) : completedForMe.length === 0 ? (
+          ) : completedByOthers.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
               No completed exchanges found
             </p>
           ) : (
-            completedForMe.map((offer) => (
+            completedByOthers.map((offer) => (
               <CompletedOfferCard
                 key={`offer-${offer.transaction_id}`}
                 offer={offer}
