@@ -163,7 +163,7 @@ const Profile = () => {
       }
       
       console.log("Time balance data:", data)
-      return data?.balance || 0 // Return 0 if not found
+      return data?.balance || 0
     },
     enabled: !!userId
   })
@@ -218,7 +218,9 @@ const Profile = () => {
             <Skeleton className="h-6 w-24" />
           ) : (
             <div className="text-sm font-medium">
-
+              <span className={timeBalance < 0 ? "text-red-500" : "text-navy"}>
+                {timeBalance} credits
+              </span>
             </div>
           )}
           <Button variant="outline" onClick={handleLogout}>

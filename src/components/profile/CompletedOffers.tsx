@@ -1,3 +1,4 @@
+
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "@/integrations/supabase/client"
@@ -6,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, BadgeCheck } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface CompletedOffersProps {
   userId: string | null
@@ -172,29 +174,92 @@ const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => 
     }
   }
 
+  const completedByMe = completedOffers?.filter(offer => !offer.isOwner) || []
+  const completedForMe = completedOffers?.filter(offer => offer.isOwner) || []
+
   return (
-    <div className="space-y-4">
-      {isLoading ? (
+    <Tabs defaultValue="all">
+      <TabsList className="w-full mb-4">
+        <TabsTrigger value="all" className="flex-1">All Completed</TabsTrigger>
+        <TabsTrigger value="by-me" className="flex-1">Completed By Me</TabsTrigger>
+        <TabsTrigger value="for-me" className="flex-1">Completed For Me</TabsTrigger>
+      </TabsList>
+      
+      <TabsContent value="all">
         <div className="space-y-4">
-          <Skeleton className="h-36 w-full" />
-          <Skeleton className="h-36 w-full" />
+          {isLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-36 w-full" />
+              <Skeleton className="h-36 w-full" />
+            </div>
+          ) : completedOffers?.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              No completed exchanges found
+            </p>
+          ) : (
+            completedOffers?.map((offer) => (
+              <CompletedOfferCard
+                key={`offer-${offer.transaction_id}`}
+                offer={offer}
+                onClaimCredits={handleClaimCredits}
+                isClaimingCredits={claimCreditsMutation.isPending}
+                isClaimedLocally={claimedTransactions.includes(offer.transaction_id || '')}
+              />
+            ))
+          )}
         </div>
-      ) : completedOffers?.length === 0 ? (
-        <p className="text-center text-muted-foreground py-8">
-          No completed exchanges found
-        </p>
-      ) : (
-        completedOffers?.map((offer) => (
-          <CompletedOfferCard
-            key={`offer-${offer.transaction_id}`}
-            offer={offer}
-            onClaimCredits={handleClaimCredits}
-            isClaimingCredits={claimCreditsMutation.isPending}
-            isClaimedLocally={claimedTransactions.includes(offer.transaction_id || '')}
-          />
-        ))
-      )}
-    </div>
+      </TabsContent>
+      
+      <TabsContent value="by-me">
+        <div className="space-y-4">
+          {isLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-36 w-full" />
+              <Skeleton className="h-36 w-full" />
+            </div>
+          ) : completedByMe.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              You haven't completed any offers yet
+            </p>
+          ) : (
+            completedByMe.map((offer) => (
+              <CompletedOfferCard
+                key={`by-me-${offer.transaction_id}`}
+                offer={offer}
+                onClaimCredits={handleClaimCredits}
+                isClaimingCredits={claimCreditsMutation.isPending}
+                isClaimedLocally={claimedTransactions.includes(offer.transaction_id || '')}
+              />
+            ))
+          )}
+        </div>
+      </TabsContent>
+      
+      <TabsContent value="for-me">
+        <div className="space-y-4">
+          {isLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-36 w-full" />
+              <Skeleton className="h-36 w-full" />
+            </div>
+          ) : completedForMe.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              No offers have been completed for you yet
+            </p>
+          ) : (
+            completedForMe.map((offer) => (
+              <CompletedOfferCard
+                key={`for-me-${offer.transaction_id}`}
+                offer={offer}
+                onClaimCredits={handleClaimCredits}
+                isClaimingCredits={claimCreditsMutation.isPending}
+                isClaimedLocally={claimedTransactions.includes(offer.transaction_id || '')}
+              />
+            ))
+          )}
+        </div>
+      </TabsContent>
+    </Tabs>
   )
 }
 
