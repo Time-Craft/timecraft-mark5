@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -219,7 +218,11 @@ const Profile = () => {
             <Skeleton className="h-6 w-24" />
           ) : (
             <div className="text-sm font-medium">
-
+              {timeBalance !== null && (
+                <span className="bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full">
+                  {timeBalance} Credits
+                </span>
+              )}
             </div>
           )}
           <Button variant="outline" onClick={handleLogout}>
