@@ -136,6 +136,7 @@ const Profile = () => {
         .from('offers')
         .select('*')
         .eq('profile_id', userId)
+        .neq('status', 'completed') // Don't fetch completed offers
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -163,7 +164,7 @@ const Profile = () => {
       }
       
       console.log("Time balance data:", data)
-      return data?.balance || 0
+      return data?.balance || 0 // Return 0 if not found
     },
     enabled: !!userId
   })
@@ -218,9 +219,7 @@ const Profile = () => {
             <Skeleton className="h-6 w-24" />
           ) : (
             <div className="text-sm font-medium">
-              <span className={timeBalance < 0 ? "text-red-500" : "text-navy"}>
-                {timeBalance} credits
-              </span>
+
             </div>
           )}
           <Button variant="outline" onClick={handleLogout}>

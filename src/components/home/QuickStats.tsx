@@ -12,6 +12,7 @@ const QuickStats = () => {
   const queryClient = useQueryClient()
   const [userId, setUserId] = useState<string | null>(null)
   
+  // First fetch the user ID
   useEffect(() => {
     const fetchUserId = async () => {
       const { data } = await supabase.auth.getUser()
@@ -23,9 +24,11 @@ const QuickStats = () => {
     fetchUserId()
   }, [])
 
+  // Set up real-time listeners only when we have a user ID
   useEffect(() => {
     if (!userId) return
     
+    // Set up real-time listener for time balances changes
     const timeBalanceChannel = supabase
       .channel('time-balance-changes')
       .on(
@@ -43,6 +46,7 @@ const QuickStats = () => {
       )
       .subscribe()
 
+    // Set up real-time listener for offers changes to update stats
     const offersChannel = supabase
       .channel('offers-changes')
       .on(
@@ -68,6 +72,7 @@ const QuickStats = () => {
     }
   }, [queryClient, userId])
 
+  // Get user stats from the database
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['user-stats', userId],
     queryFn: async () => {
@@ -82,9 +87,10 @@ const QuickStats = () => {
       if (error) throw error
       return data
     },
-    enabled: !!userId
+    enabled: !!userId // Only run query when userId is available
   })
 
+  // Get time balance directly from the time_balances table
   const { data: timeBalance, isLoading: timeBalanceLoading } = useQuery({
     queryKey: ['time-balance', userId],
     queryFn: async () => {
@@ -105,17 +111,18 @@ const QuickStats = () => {
       console.log("Time balance data in QuickStats:", data)
       return data?.balance || 0
     },
-    enabled: !!userId
+    enabled: !!userId // Only run query when userId is available
   })
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      <Card className="bg-gradient-to-br from-teal/5 to-mint/5 backdrop-blur-sm border border-white/20 rounded-xl">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+      <Card className="bg-gradient-to-br from-teal/5 to-mint/5 backdrop-blur-sm border border-white/20 rounded-xl relative">
+        {/* <div className="absolute inset-0 backdrop-blur-md bg-white/80 rounded-xl" />
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative">
           <CardTitle className="text-sm font-medium text-navy">Time Balance</CardTitle>
           <Clock className="h-4 w-4 text-teal" />
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
           <div className="flex items-center justify-between">
             <div className="text-2xl font-bold text-navy">
               {timeBalanceLoading ? (
@@ -128,7 +135,7 @@ const QuickStats = () => {
             </div>
             <Badge variant="outline" className="bg-teal/10 text-teal">Premium</Badge>
           </div>
-        </CardContent>
+        </CardContent> */}
       </Card>
     </div>
   )

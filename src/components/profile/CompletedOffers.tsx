@@ -1,4 +1,3 @@
-
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { supabase } from "@/integrations/supabase/client"
@@ -7,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, BadgeCheck } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 interface CompletedOffersProps {
   userId: string | null
@@ -34,7 +33,7 @@ const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => 
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [claimedTransactions, setClaimedTransactions] = useState<string[]>([])
-
+  
   const claimCreditsMutation = useMutation({
     mutationFn: async (transactionId: string) => {
       console.log("Claiming credits for transaction:", transactionId)
@@ -65,9 +64,17 @@ const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => 
       queryClient.invalidateQueries({ queryKey: ['time-balance'] })
       queryClient.invalidateQueries({ queryKey: ['time-balance', userId] })
       queryClient.invalidateQueries({ queryKey: ['user-stats'] })
+    },
+    onError: (error) => {
+      console.error("Error claiming credits:", error)
+      toast({
+        title: "Failed to claim credits",
+        description: error.message,
+        variant: "destructive",
+      })
     }
   })
-
+  
   const { data: completedOffers, isLoading } = useQuery({
     queryKey: ['completed-offers', userId],
     queryFn: async () => {
@@ -174,30 +181,29 @@ const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => 
     }
   }
 
-  const completedByMe = completedOffers?.filter(offer => !offer.isOwner) || []
-  const completedForMe = completedOffers?.filter(offer => offer.isOwner) || []
+  const completedForOthers = completedOffers?.filter(offer => !offer.isOwner) || []
+  const completedByOthers = completedOffers?.filter(offer => offer.isOwner) || []
 
   return (
-    <Tabs defaultValue="all">
-      <TabsList className="w-full mb-4">
-        <TabsTrigger value="all" className="flex-1">All Completed</TabsTrigger>
-        <TabsTrigger value="by-me" className="flex-1">Completed By Me</TabsTrigger>
-        <TabsTrigger value="for-me" className="flex-1">Completed For Me</TabsTrigger>
-      </TabsList>
-      
-      <TabsContent value="all">
-        <div className="space-y-4">
+    <div className="space-y-4">
+      <Tabs defaultValue="completed-by-me" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="completed-by-me">Completed by Me</TabsTrigger>
+          <TabsTrigger value="completed-for-me">Completed for Me</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="completed-by-me">
           {isLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-36 w-full" />
               <Skeleton className="h-36 w-full" />
             </div>
-          ) : completedOffers?.length === 0 ? (
+          ) : completedForOthers.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
               No completed exchanges found
             </p>
           ) : (
-            completedOffers?.map((offer) => (
+            completedForOthers.map((offer) => (
               <CompletedOfferCard
                 key={`offer-${offer.transaction_id}`}
                 offer={offer}
@@ -207,24 +213,22 @@ const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => 
               />
             ))
           )}
-        </div>
-      </TabsContent>
-      
-      <TabsContent value="by-me">
-        <div className="space-y-4">
+        </TabsContent>
+        
+        <TabsContent value="completed-for-me">
           {isLoading ? (
             <div className="space-y-4">
               <Skeleton className="h-36 w-full" />
               <Skeleton className="h-36 w-full" />
             </div>
-          ) : completedByMe.length === 0 ? (
+          ) : completedByOthers.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              You haven't completed any offers yet
+              No completed exchanges found
             </p>
           ) : (
-            completedByMe.map((offer) => (
+            completedByOthers.map((offer) => (
               <CompletedOfferCard
-                key={`by-me-${offer.transaction_id}`}
+                key={`offer-${offer.transaction_id}`}
                 offer={offer}
                 onClaimCredits={handleClaimCredits}
                 isClaimingCredits={claimCreditsMutation.isPending}
@@ -232,34 +236,9 @@ const CompletedOffers = ({ userId, username, avatar }: CompletedOffersProps) => 
               />
             ))
           )}
-        </div>
-      </TabsContent>
-      
-      <TabsContent value="for-me">
-        <div className="space-y-4">
-          {isLoading ? (
-            <div className="space-y-4">
-              <Skeleton className="h-36 w-full" />
-              <Skeleton className="h-36 w-full" />
-            </div>
-          ) : completedForMe.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              No offers have been completed for you yet
-            </p>
-          ) : (
-            completedForMe.map((offer) => (
-              <CompletedOfferCard
-                key={`for-me-${offer.transaction_id}`}
-                offer={offer}
-                onClaimCredits={handleClaimCredits}
-                isClaimingCredits={claimCreditsMutation.isPending}
-                isClaimedLocally={claimedTransactions.includes(offer.transaction_id || '')}
-              />
-            ))
-          )}
-        </div>
-      </TabsContent>
-    </Tabs>
+        </TabsContent>
+      </Tabs>
+    </div>
   )
 }
 
